@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import User from "../models/user";
+import passwordHash from "../crypto/passwordHash"
 
 type userType = {
   name:string,
@@ -13,28 +14,38 @@ type userType = {
 export async function createUser (req:Request, res:Response){
   
   const { name, lastName, email, password, birthDate, gender }:userType = req.body
-  const genToken = token()
   
   const userReq = await User.create({
     name:name,
     lastName: lastName,
     email: email,
-    password: password,
+    password: passwordHash(password),
     birthDate: birthDate,
     gender: gender,
-    token: genToken
+    token: token()
   })
 
   res.status(201).send(userReq.toJSON())
 }
 
-export function verifyUsersData(req:Request, res:Response, next:NextFunction){
+export async function verifyUsersData(req:Request, res:Response, next:NextFunction){
 
   const {name, lastName, email, birthDate, gender, password}:userType = req.body 
   const date = new Date(birthDate).valueOf()
+  
+  const user:Array<any> = await User.findAll({
+    where:{
+      email: email
+    }
+  })
 
-  if(name && lastName && email && date && password) return next()
-  else return res.status(400).send("Dados invalidos")
+  const chackEmail = user[0]?.email ? true : false
+
+  if(name && lastName && email && date && password && !chackEmail){
+    return next()
+  }else{
+   return res.status(400).send("Dados invalidos")
+  }
 
 }
 
